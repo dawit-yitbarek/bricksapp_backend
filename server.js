@@ -12,7 +12,6 @@ import bcrypt from "bcrypt";
 import pkg from "pg";
 const { Pool } = pkg;
 import connectPgSimple from "connect-pg-simple";
-import { disconnect } from "process";
 
 
 const PGStore = connectPgSimple(session);
