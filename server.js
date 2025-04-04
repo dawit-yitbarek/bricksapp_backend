@@ -22,12 +22,10 @@ const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
 
 // database configuration
 const pool = new Pool({
-  user: process.env.PG_USER,
-  host: process.env.PG_HOST,
-  database: process.env.PG_DATABASE,
-  password: process.env.PG_PASSWORD,
-  port: process.env.PG_PORT
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
 });
+
 pool.connect();
 
 // Middleware order is crucial!  Initialize session storage before Passport.
@@ -49,7 +47,7 @@ app.use(
 );
 
 app.use(cors({
-  origin: ['http://localhost:5173', 'https://bricksapp-frontend.onrender.com'],
+  origin: ['https://bricksapp-frontend.onrender.com'],
   credentials: true
 }));
 
