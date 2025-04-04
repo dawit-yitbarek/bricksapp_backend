@@ -25,7 +25,7 @@ console.log("DATABASE_URL:", process.env.DATABASE_URL);
 // database configuration
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  ssl: process.env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : false
 });
 
 pool.connect();
