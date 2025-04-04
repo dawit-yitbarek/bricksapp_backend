@@ -27,8 +27,16 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : false
 });
+console.log("The ssl",ssl);
 
-pool.connect();
+
+pool.connect((err) => {
+  if (err) {
+      console.error('Failed to connect to the database:', err);
+  } else {
+      console.log('Database connection successful!');
+  }
+});
 
 // Middleware order is crucial!  Initialize session storage before Passport.
 app.use(
