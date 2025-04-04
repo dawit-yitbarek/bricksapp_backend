@@ -49,7 +49,7 @@ app.use(
 );
 
 app.use(cors({
-  origin: ['http://localhost:5173', 'https://bricks-1i79.onrender.com'],
+  origin: ['http://localhost:5173', 'https://bricksapp-frontend.onrender.com'],
   credentials: true
 }));
 
@@ -177,7 +177,7 @@ app.get("/dashboard", async (req, res) => {
           "INSERT INTO verification_token (user_id, token) VALUES ($1, $2)",
           [user.id, verificationToken]
         );
-        const verificationLink = `http://localhost:3000/verify-email?token=${verificationToken}`;
+        const verificationLink = `https://bricksapp-backend.onrender.com/verify-email?token=${verificationToken}`;
         const mailOptions = {
           from: process.env.EMAIL_USER,
           to: email,
@@ -356,7 +356,7 @@ app.post("/disconnect-wallet", async (req, res) => {
      {
        clientID: process.env.GOOGLE_CLIENT_ID,
        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-       callbackURL: "https://bricks-1i79.onrender.com/auth/google/dashboard",
+       callbackURL: "https://bricksapp-backend.onrender.com/auth/google/dashboard",
        userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo",
      },
      async (accessToken, refreshToken, profile, cb) => {
@@ -391,8 +391,8 @@ app.post("/disconnect-wallet", async (req, res) => {
  app.get(
    "/auth/google/dashboard",
    passport.authenticate("google", {
-     successRedirect: "http://localhost:5173/dashboard",
-     failureRedirect: "http://localhost:5173/signin"
+     successRedirect: "https://bricksapp-frontend.onrender.com/dashboard",
+     failureRedirect: "https://bricksapp-frontend.onrender.com/signin"
    })
  );
 
