@@ -20,6 +20,8 @@ const port = 3000;
 const saltRounds = 10;
 const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
 
+console.log("DATABASE_URL:", process.env.DATABASE_URL);
+
 // database configuration
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
