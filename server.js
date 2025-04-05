@@ -52,10 +52,12 @@ app.use(
     cookie: {
       maxAge: 30 * 24 * 60 * 60 * 1000,
       secure: process.env.NODE_ENV === 'production',
-      httpOnly: true
-    }    
+      httpOnly: true,
+      domain: '.onrender.com' // This allows the cookie to be shared across all onrender.com subdomains.
+    }
   })
 );
+
 
 app.use(cors({
   origin: ['https://bricksapp-frontend.onrender.com'],
@@ -331,7 +333,7 @@ passport.use(
   "local",
   new Strategy(async function verify(email, password, cb) {
     try {
-      const selectUser = await db.query("SELECT * FROM users WHERE email = $1 ", [email]);
+      const selectUser = await pool.query("SELECT * FROM users WHERE email = $1 ", [email]);
       if (selectUser.rows.length > 0) {
         const user = selectUser.rows[0];
         const storedHashedPassword = user.password;
