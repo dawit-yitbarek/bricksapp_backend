@@ -28,6 +28,7 @@ const pool = new Pool({
   ssl: process.env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : false
 });
 console.log("The ssl",ssl);
+console.log("down to the ssl configuration")
 
 
 pool.connect((err) => {
