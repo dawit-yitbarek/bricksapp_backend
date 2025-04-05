@@ -91,7 +91,7 @@ passport.deserializeUser(async (id, cb) => {
 });
 
 app.use(passport.initialize());
-// app.use(passport.session());
+app.use(passport.session());
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
