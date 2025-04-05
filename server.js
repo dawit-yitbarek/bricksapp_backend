@@ -51,12 +51,14 @@ app.use(
     saveUninitialized: false,
     cookie: {
       maxAge: 30 * 24 * 60 * 60 * 1000,
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.NODE_ENV === 'production', // true in production (HTTPS)
       httpOnly: true,
-      domain: '.onrender.com' // This allows the cookie to be shared across all onrender.com subdomains.
-    }
+      domain: '.onrender.com',   // Allow cookie to be used across subdomains
+      sameSite: 'none'           // Required for cross-site cookies in modern browsers
+    }    
   })
 );
+
 
 
 app.use(cors({
