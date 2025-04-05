@@ -54,8 +54,7 @@ app.use(
       maxAge: 30 * 24 * 60 * 60 * 1000,
       secure: true,              // Make sure this is true in production
       httpOnly: true,
-      sameSite: 'none',          // Required for cross-site
-      domain: '.onrender.com'    // For cross-subdomain
+      sameSite: 'none'          // Required for cross-site
     }
   })
 );
@@ -271,6 +270,8 @@ app.post("/signin", async (req, res, next) => {
       }
       console.log("User authenticated successfully");
       user.success = true;
+      req.session ? console.log(req.session) : console.log("no session");
+      
       return res.json(user); // Send user data to the frontend
     });
 
