@@ -5,7 +5,9 @@ import crypto from "crypto";
 import nodemailer from "nodemailer"
 import passport from "passport";
 import { Strategy } from "passport-local";
-import GoogleStrategy from "passport-google-oauth20"
+import GoogleStrategy from "passport-google-oauth20";
+import dns from 'dns';
+import { URL } from "url";
 import "dotenv/config";
 import cors from 'cors';
 import bcrypt from "bcrypt";
@@ -14,7 +16,7 @@ const { Pool } = pkg;
 import connectPgSimple from "connect-pg-simple";
 
 
-const PGStore = connectPgSimple(session);
+// const PGStore = connectPgSimple(session);
 const app = express();
 const port = 3000;
 const saltRounds = 10;
@@ -22,39 +24,55 @@ const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
 
 console.log("DATABASE_URL:", process.env.DATABASE_URL);
 
-// database configuration
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: false } : false
-});
-console.log("down to the ssl configuration")
+(async () => {
+  const dbUrl = new URL(process.env.DATABASE_URL);
+  const host = dbUrl.hostname;
 
+  // Resolve to IPv4 address only
+  dns.lookup(host, { family: 4 }, (err, address) => {
+    if (err) {
+      console.error('DNS lookup failed:', err);
+      return;
+    }
 
-pool.connect((err) => {
-  if (err) {
-      console.error('Failed to connect to the database:', err);
-  } else {
-      console.log('Database connection successful!');
-  }
-});
+    dbUrl.hostname = address;
+    dbUrl.host = `${address}:${dbUrl.port}`;
+
+    const pool = new Pool({
+      connectionString: dbUrl.toString(),
+      ssl: {
+        rejectUnauthorized: false
+      }
+    });
+
+    pool.connect((err) => {
+      if (err) {
+        console.error('Failed to connect to the database:', err);
+      } else {
+        console.log('Database connection successful!');
+      }
+    });
+
+  });
+})();
 
 // Middleware order is crucial!  Initialize session storage before Passport.
-app.use(
-  session({
-    store: new PGStore({
-      pool: pool,
-      tableName: 'session'
-    }),
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-      secure: process.env.NODE_ENV === 'production',
-      httpOnly: true
-    }    
-  })
-);
+// app.use(
+//   session({
+//     store: new PGStore({
+//       pool: pool,
+//       tableName: 'session'
+//     }),
+//     secret: process.env.SESSION_SECRET,
+//     resave: false,
+//     saveUninitialized: false,
+//     cookie: {
+//       maxAge: 30 * 24 * 60 * 60 * 1000,
+//       secure: process.env.NODE_ENV === 'production',
+//       httpOnly: true
+//     }    
+//   })
+// );
 
 app.use(cors({
   origin: ['https://bricksapp-frontend.onrender.com'],
@@ -90,7 +108,7 @@ passport.deserializeUser(async (id, cb) => {
 });
 
 app.use(passport.initialize());
-app.use(passport.session());
+// app.use(passport.session());
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
