@@ -40,22 +40,26 @@ pool.connect((err) => {
 
 
 // Initialize session storage before Passport.
-app.use(session({
-  store: new PGStore({
-    pool: pool,
-    tableName: 'session'
-  }),
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    maxAge: 30 * 24 * 60 * 60 * 1000,
-    secure: true,
-    httpOnly: true,
-    sameSite: "none"
-  }
-})
+app.use(
+  session({
+    name: "connect.sid",
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    store: new PGStore({
+      pool: pool,
+      tableName: 'session'
+    }),
+    cookie: {
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+      secure: true,              // Make sure this is true in production
+      httpOnly: true,
+      sameSite: 'none',          // Required for cross-site
+      domain: '.onrender.com'    // For cross-subdomain
+    }
+  })
 );
+
 
 
 app.use(cors({
