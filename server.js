@@ -6,8 +6,6 @@ import nodemailer from "nodemailer"
 import passport from "passport";
 import { Strategy } from "passport-local";
 import GoogleStrategy from "passport-google-oauth20";
-import dns from 'dns';
-import { URL } from "url";
 import "dotenv/config";
 import cors from 'cors';
 import bcrypt from "bcrypt";
@@ -16,7 +14,7 @@ const { Pool } = pkg;
 import connectPgSimple from "connect-pg-simple";
 
 
-// const PGStore = connectPgSimple(session);
+const PGStore = connectPgSimple(session);
 const app = express();
 const port = 3000;
 const saltRounds = 10;
@@ -24,55 +22,40 @@ const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
 
 console.log("DATABASE_URL:", process.env.DATABASE_URL);
 
-(async () => {
-  const dbUrl = new URL(process.env.DATABASE_URL);
-  const host = dbUrl.hostname;
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+});
 
-  // Resolve to IPv4 address only
-  dns.lookup(host, { family: 4 }, (err, address) => {
-    if (err) {
-      console.error('DNS lookup failed:', err);
-      return;
-    }
 
-    dbUrl.hostname = address;
-    dbUrl.host = `${address}:${dbUrl.port}`;
+pool.connect((err) => {
+  if (err) {
+    console.error('Failed to connect to the database:', err);
+  } else {
+    console.log('Database connection successful!');
+  }
+});
 
-    const pool = new Pool({
-      connectionString: dbUrl.toString(),
-      ssl: {
-        rejectUnauthorized: false
-      }
-    });
 
-    pool.connect((err) => {
-      if (err) {
-        console.error('Failed to connect to the database:', err);
-      } else {
-        console.log('Database connection successful!');
-      }
-    });
-
-  });
-})();
-
-// Middleware order is crucial!  Initialize session storage before Passport.
-// app.use(
-//   session({
-//     store: new PGStore({
-//       pool: pool,
-//       tableName: 'session'
-//     }),
-//     secret: process.env.SESSION_SECRET,
-//     resave: false,
-//     saveUninitialized: false,
-//     cookie: {
-//       maxAge: 30 * 24 * 60 * 60 * 1000,
-//       secure: process.env.NODE_ENV === 'production',
-//       httpOnly: true
-//     }    
-//   })
-// );
+// Initialize session storage before Passport.
+app.use(
+  session({
+    store: new PGStore({
+      pool: pool,
+      tableName: 'session'
+    }),
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true
+    }    
+  })
+);
 
 app.use(cors({
   origin: ['https://bricksapp-frontend.onrender.com'],
@@ -84,7 +67,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 // Passport serializeUser and deserializeUser (define before routes)
- passport.serializeUser((user, cb) => {
+passport.serializeUser((user, cb) => {
   console.log("Serializing user:", user); // Debugging line
   cb(null, user.id);
 });
@@ -119,7 +102,7 @@ const transporter = nodemailer.createTransport({
 });
 
 
-function verifyTelegrmAuth(data){
+function verifyTelegrmAuth(data) {
   const authData = URLSearchParams(data);
   const hash = authData.get("hash");
   authData.delete("hash");
@@ -132,49 +115,49 @@ function verifyTelegrmAuth(data){
 }
 
 
-              //home route
+//home route
 
-app.get("/isAuthenticated", (req, res)=>{
-  if(req.isAuthenticated()){
-    res.json({authenticated: true})
-  }else{
-    res.json({authenticated: false})
+app.get("/isAuthenticated", (req, res) => {
+  if (req.isAuthenticated()) {
+    res.json({ authenticated: true })
+  } else {
+    res.json({ authenticated: false })
   }
 })
 
 
 app.get("/home", async (req, res) => {
-  
+
   if (req.isAuthenticated()) {
     res.json(req.user);
     console.log(req.user);
   } else {
-    res.json({ email: "example@gmail.com", registered: false});
+    res.json({ email: "example@gmail.com", registered: false });
     console.log("no user");
   }
 });
 
 app.get("/dashboard", async (req, res) => {
-  
+
   if (req.isAuthenticated()) {
     res.json(req.user);
     console.log(req.user);
   } else {
-    res.json({ email: "---", registered: false});
+    res.json({ email: "---", registered: false });
     console.log("no user");
   }
 });
 
 
 
-              //register route
- app.post("/register", async (req, res, next) => {
-   const { email, password } = req.body;
+//register route
+app.post("/register", async (req, res, next) => {
+  const { email, password } = req.body;
 
   try {
- 
+
     console.log("registration started")
-   
+
     console.log("Request body:", req.body); // Debugging line
 
     const checkUser = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
@@ -218,29 +201,29 @@ app.get("/dashboard", async (req, res) => {
           }
           res.json({ success: true, message: "Verification email sent. Please check your inbox." });
         });
-  
 
-    
+
+
       } catch (dbError) {
         console.error("Database error:", dbError);
-        return res.json({success: false, message: "Error occured during registration please try again.",  });
+        return res.json({ success: false, message: "Error occured during registration please try again.", });
       }
     });
   } catch (error) {
     console.error("Error occurred on registering user ", error);
-    res.json({success: false, message: "Registration failed" });
+    res.json({ success: false, message: "Registration failed" });
     //status(500).
   }
-}); 
+});
 
-              //logout route
+//logout route
 app.post("/logout", (req, res) => {
   req.logout((err) => {
     if (err) {
-      res.json({failed: true})
+      res.json({ failed: true })
       return next(err);
     }
-    res.json({failed: false})
+    res.json({ failed: false })
   })
 });
 
@@ -258,11 +241,11 @@ app.post("/signin", async (req, res, next) => {
     const user = selectUser.rows[0];
 
 
- if (user.authenticator === "google") {
+    if (user.authenticator === "google") {
       console.log("authentication method is google");
       return res.json({ success: false, message: "you login with this email using google before. please login using google again" });
     }
-  
+
     const storedHashedPassword = user.password;
 
     const valid = await bcrypt.compare(password, storedHashedPassword); // Await bcrypt comparison
@@ -289,7 +272,7 @@ app.post("/signin", async (req, res, next) => {
 
 
 
-              //connect wallet route
+//connect wallet route
 app.post("/connect-wallet", async (req, res) => {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ message: "Unauthorized" }); // Check if user is authenticated
@@ -307,7 +290,7 @@ app.post("/connect-wallet", async (req, res) => {
 });
 
 
-              //get wallet route
+//get wallet route
 app.get("/get-wallet", async (req, res) => {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ message: "Unauthorized" }); // Check if user is authenticated
@@ -319,7 +302,7 @@ app.get("/get-wallet", async (req, res) => {
     if (!selectedAddress) {
       res.json({ address: "no address" });
     }
-  
+
     res.json({ address: selectedAddress.address || null });
   } catch (error) {
     console.error("error on getting wallet ", error);
@@ -328,7 +311,7 @@ app.get("/get-wallet", async (req, res) => {
 });
 
 
-             //disconnect wallet route
+//disconnect wallet route
 app.post("/disconnect-wallet", async (req, res) => {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ message: "Unauthorized" }); // Check if user is authenticated
@@ -340,89 +323,89 @@ app.post("/disconnect-wallet", async (req, res) => {
     console.error("error on disconnecting wallet ", error);
     res.status(500).json({ message: "Failed to disconnect wallet" });
   }
- });
+});
 
 
-             //local strategy for signin
- passport.use(
-   "local",
-   new Strategy(async function verify(email, password, cb) {
-     try {
-       const selectUser = await db.query("SELECT * FROM users WHERE email = $1 ", [email]);
-       if (selectUser.rows.length > 0) {
-         const user = selectUser.rows[0];
-         const storedHashedPassword = user.password;
-         bcrypt.compare(password, storedHashedPassword, (err, valid) => {
-           if (err) {
-             console.error("Error comparing passwords:", err);
-             return cb(err);
-           } else {
-             if (valid) {
+//local strategy for signin
+passport.use(
+  "local",
+  new Strategy(async function verify(email, password, cb) {
+    try {
+      const selectUser = await db.query("SELECT * FROM users WHERE email = $1 ", [email]);
+      if (selectUser.rows.length > 0) {
+        const user = selectUser.rows[0];
+        const storedHashedPassword = user.password;
+        bcrypt.compare(password, storedHashedPassword, (err, valid) => {
+          if (err) {
+            console.error("Error comparing passwords:", err);
+            return cb(err);
+          } else {
+            if (valid) {
               console.log(user);
-               return cb(null, user);
-             } else {
+              return cb(null, user);
+            } else {
               console.log("user not logged in");
-               return cb(null, false);
-             }
-           }
-         });
-       } else {
+              return cb(null, false);
+            }
+          }
+        });
+      } else {
         console.log("user not found with this email")
-         return cb("User not found");
-       }
-     } catch (err) {
-       console.log(err);
-     }
-   })
- );
+        return cb("User not found");
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  })
+);
 
- passport.use(
-   "google",
-   new GoogleStrategy(
-     {
-       clientID: process.env.GOOGLE_CLIENT_ID,
-       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-       callbackURL: "https://bricksapp-backend.onrender.com/auth/google/dashboard",
-       userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo",
-     },
-     async (accessToken, refreshToken, profile, cb) => {
-       try {
-         const result = await pool.query("SELECT * FROM users WHERE email = $1", [
+passport.use(
+  "google",
+  new GoogleStrategy(
+    {
+      clientID: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL: "https://bricksapp-backend.onrender.com/auth/google/dashboard",
+      userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo",
+    },
+    async (accessToken, refreshToken, profile, cb) => {
+      try {
+        const result = await pool.query("SELECT * FROM users WHERE email = $1", [
           profile.emails[0].value
 
-         ]);
-         if (result.rows.length === 0) {
-           const newUser = await pool.query(
-             "INSERT INTO users (email, password, authenticator, is_verified) VALUES ($1, $2, $3, $4) RETURNING *",
-             [profile.emails[0].value, null, "google", true]
-           );
-           return cb(null, newUser.rows[0]);
-         } else {
-           return cb(null, result.rows[0]);
-         }
-       } catch (err) {
-         return cb(err);
-       }
-     }
-   )
- );
+        ]);
+        if (result.rows.length === 0) {
+          const newUser = await pool.query(
+            "INSERT INTO users (email, password, authenticator, is_verified) VALUES ($1, $2, $3, $4) RETURNING *",
+            [profile.emails[0].value, null, "google", true]
+          );
+          return cb(null, newUser.rows[0]);
+        } else {
+          return cb(null, result.rows[0]);
+        }
+      } catch (err) {
+        return cb(err);
+      }
+    }
+  )
+);
 
- app.get(
-   "/auth/google",
-   passport.authenticate("google", {
-     scope: ["profile", "email"],
-   })
- );
+app.get(
+  "/auth/google",
+  passport.authenticate("google", {
+    scope: ["profile", "email"],
+  })
+);
 
- app.get(
-   "/auth/google/dashboard",
-   passport.authenticate("google", {
-     successRedirect: "https://bricksapp-frontend.onrender.com/dashboard",
-     failureRedirect: "https://bricksapp-frontend.onrender.com/signin"
-   })
- );
+app.get(
+  "/auth/google/dashboard",
+  passport.authenticate("google", {
+    successRedirect: "https://bricksapp-frontend.onrender.com/dashboard",
+    failureRedirect: "https://bricksapp-frontend.onrender.com/signin"
+  })
+);
 
- app.get("/verify-email", async (req, res) => {
+app.get("/verify-email", async (req, res) => {
   const { token } = req.query;
 
   try {
@@ -443,7 +426,7 @@ app.post("/disconnect-wallet", async (req, res) => {
 
     res.json({ success: true, message: "Email verified successfully" });
 
-    req.login({ user}, (err) => {  
+    req.login({ user }, (err) => {
       if (err) {
         return next(err);
       }
@@ -457,47 +440,47 @@ app.post("/disconnect-wallet", async (req, res) => {
 });
 
 
- 
- app.post("/auth/telegram", async (req, res, next) => {
-   console.log("Telegram Authentication Request Received");
-   const data = req.body;
-   console.log("Received Data:", data || null);
- 
-   if (!verifyTelegrmAuth(data)) {
-     return res.json({ success: false, message: "Invalid telegram data" });
-   }
- 
-   const telegramId = data.id;
 
-   try {
-     const user = await pool.query("SELECT * FROM users WHERE telegram_id = $1", [telegramId]);
- 
-     if (user.rows.length === 0) {
-       const newUser = await pool.query(
-         "INSERT INTO users (email, is_verified, authenticator, telegram_id) VALUES ($1, $2, $3, $4) RETURNING *", 
-         [null, true, "telegram", telegramId]
-       );
- 
-       req.login(newUser.rows[0], (err) => {  
-         if (err) {
-           return next(err);
-         }
-         res.json({ success: true });
-       });
-     } else {
-       req.login(user.rows[0], (err) => {  
-         if (err) {
-           return next(err);
-         }
-         res.json({ success: true });
-       });
-     }
-   } catch (error) {
-     console.log("Error on login with Telegram:", error);
-     res.json({ success: false, message: "Authorization failed, please try again" });
-   }
- });
- 
+app.post("/auth/telegram", async (req, res, next) => {
+  console.log("Telegram Authentication Request Received");
+  const data = req.body;
+  console.log("Received Data:", data || null);
+
+  if (!verifyTelegrmAuth(data)) {
+    return res.json({ success: false, message: "Invalid telegram data" });
+  }
+
+  const telegramId = data.id;
+
+  try {
+    const user = await pool.query("SELECT * FROM users WHERE telegram_id = $1", [telegramId]);
+
+    if (user.rows.length === 0) {
+      const newUser = await pool.query(
+        "INSERT INTO users (email, is_verified, authenticator, telegram_id) VALUES ($1, $2, $3, $4) RETURNING *",
+        [null, true, "telegram", telegramId]
+      );
+
+      req.login(newUser.rows[0], (err) => {
+        if (err) {
+          return next(err);
+        }
+        res.json({ success: true });
+      });
+    } else {
+      req.login(user.rows[0], (err) => {
+        if (err) {
+          return next(err);
+        }
+        res.json({ success: true });
+      });
+    }
+  } catch (error) {
+    console.log("Error on login with Telegram:", error);
+    res.json({ success: false, message: "Authorization failed, please try again" });
+  }
+});
+
 
 
 // Error-handling middleware (must be defined after routes)
