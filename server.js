@@ -40,31 +40,33 @@ pool.connect((err) => {
 
 
 // Initialize session storage before Passport.
-app.use(
-  session({
-    store: new PGStore({
-      pool: pool,
-      tableName: 'session'
-    }),
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-      secure: process.env.NODE_ENV === 'production', // true in production (HTTPS)
-      httpOnly: true,
-      domain: '.onrender.com',   // Allow cookie to be used across subdomains
-      sameSite: 'none'           // Required for cross-site cookies in modern browsers
-    }    
-  })
+app.use(session({
+  store: new PGStore({
+    pool: pool,
+    tableName: 'session'
+  }),
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    maxAge: 30 * 24 * 60 * 60 * 1000,
+    secure: true,
+    httpOnly: true,
+    sameSite: "none"
+  }
+})
 );
-
 
 
 app.use(cors({
   origin: ['https://bricksapp-frontend.onrender.com'],
   credentials: true
 }));
+
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  next();
+});
 
 
 app.use(bodyParser.urlencoded({ extended: true }));
