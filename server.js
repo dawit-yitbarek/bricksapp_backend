@@ -51,10 +51,11 @@ app.use(
       tableName: 'session'
     }),
     cookie: {
+      domain: '.onrender.com',
       maxAge: 30 * 24 * 60 * 60 * 1000,
-      secure: true,              // Make sure this is true in production
+      secure: true,
       httpOnly: true,
-      sameSite: 'none'          // Required for cross-site
+      sameSite: 'none'
     }
   })
 );
