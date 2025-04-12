@@ -136,7 +136,7 @@ app.post("/refresh", async (req, res) => {
 
 
   // Check if refresh token is provided
-  if (!token) return res.status(401).json({ success: false, message: "No refresh token provided" });
+  if (!token) return res.json({ success: false, message: "No refresh token provided" });
 
   try {
     // Verify the refresh token
@@ -157,7 +157,7 @@ app.post("/refresh", async (req, res) => {
         // Handle invalid access token other than expiration
         res.clearCookie("refreshToken", { httpOnly: true, secure: true, sameSite: "Strict" });
         console.log("cookie cleared")
-        return res.status(403).json({ message: "Invalid access token", success: false });
+        return res.json({ message: "Invalid access token", success: false });
       }
     } else {
       console.log("access token didn't found")
@@ -168,7 +168,7 @@ app.post("/refresh", async (req, res) => {
 
   } catch (error) {
     console.log("Error on refresh route", error);
-    return res.status(500).json({ success: false, message: "Server error" });
+    return res.json({ success: false, message: "Server error" });
   }
 });
 
@@ -228,7 +228,7 @@ app.post("/signin", async (req, res, next) => {
 
   } catch (err) {
     console.error("Error during authentication:", err);
-    return res.status(500).json({ success: false, message: "Server error" });
+    return res.json({ success: false, message: "Server error" });
   }
 });
 
@@ -306,7 +306,7 @@ app.post("/register", async (req, res, next) => {
 app.post("/connect-wallet", async (req, res) => {
   const token = req.cookies.refreshToken;
 
-  if (!token) return res.status(401).json({ message: "Unauthorized" }); // Check if user is authenticated
+  if (!token) return res.json({ message: "Unauthorized" }); // Check if user is authenticated
   const { address } = req.body;
   try {
     const decoded = jwt.verify(token, process.env.REFRESH_SECRET);
@@ -315,7 +315,7 @@ app.post("/connect-wallet", async (req, res) => {
     res.json(insertAddress.rows[0]);
   } catch (error) {
     console.error("error on connecting wallet ", error);
-    res.status(500).json({ message: "Failed to connect wallet" });
+    res.json({ message: "Failed to connect wallet" });
   }
 });
 
@@ -324,7 +324,7 @@ app.post("/connect-wallet", async (req, res) => {
 app.get("/get-wallet", async (req, res) => {
   const token = req.cookies.refreshToken;
 
-  if (!token) return res.status(401).json({ message: "Unauthorized" }); // Check if user is authenticated
+  if (!token) return res.json({ message: "Unauthorized" }); // Check if user is authenticated
   try {
     const decoded = jwt.verify(token, process.env.REFRESH_SECRET);
     const getWallet = await pool.query("SELECT * FROM wallet WHERE user_id = $1", [decoded.id]);
@@ -352,7 +352,7 @@ app.post("/disconnect-wallet", async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error("error on disconnecting wallet ", error); 
-    res.status(500).json({ message: "Failed to disconnect wallet", success: false });
+    res.json({ message: "Failed to disconnect wallet", success: false });
    }
 });
 
