@@ -429,7 +429,7 @@ app.get("/auth/google/dashboard", passport.authenticate("google", {
 
 
 
-app.get("/verify-email", async (req, res) => {
+app.post("/verify-email", async (req, res) => {
   const { email, code } = req.body;
   
 
