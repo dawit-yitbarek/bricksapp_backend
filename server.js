@@ -155,7 +155,13 @@ app.post("/refresh", async (req, res) => {
           return res.json({ accessToken, success: true });
         }
         // Handle invalid access token other than expiration
-        res.clearCookie("refreshToken", { httpOnly: true, secure: true, sameSite: "Strict" });
+        res.clearCookie("refreshToken", {
+          httpOnly: true,
+          secure: true,
+          sameSite: "None",
+        });
+        
+
         console.log("cookie cleared")
         return res.json({ message: "Invalid access token", success: false });
       }
@@ -175,8 +181,14 @@ app.post("/refresh", async (req, res) => {
 //logout route
 app.post("/logout", async (req, res) => {
   const token = req.cookies.refreshToken;
-  if (!token) return res.sendStatus(204); // already logged out
-  res.clearCookie("refreshToken", { httpOnly: true, secure: true, sameSite: "Strict" });
+  if (!token) return res.sendStatus(204); // already loggedout
+  res.clearCookie("refreshToken", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "None",
+  });
+  
+  console.log("cookie cleared ", token);
   res.sendStatus(204);
 });
 
