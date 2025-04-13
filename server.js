@@ -458,7 +458,7 @@ app.post("/verify-email", async (req, res) => {
     await pool.query("DELETE FROM pending_verifications WHERE email = $1", [email]);
 
     const refreshToken = jwt.sign({ id: user.rows[0].id }, process.env.REFRESH_SECRET, { expiresIn: "150d" });
-    const accessToken = jwt.sign({ id: user.rows[0].id }, process.env.ACCESS_SECRET, { expiresIn: "1m" });
+    const accessToken = jwt.sign({ id: user.rows[0].id }, process.env.ACCESS_SECRET, { expiresIn: "15m" });
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
@@ -480,6 +480,7 @@ app.post("/verify-email", async (req, res) => {
     res.json({ success: false, message: "Failed to verify email" });
   }
 });
+
 
 
 
@@ -525,6 +526,14 @@ app.post("/verify-email", async (req, res) => {
 
 
 
+
+
+
+
+// It's monitored by UptimeRobot, which sends a request every 5 minutes.
+app.get('/ping', (req, res) => {
+  res.status(200).send('pong');
+});
 
 // Error-handling middleware (must be defined after routes)
 app.use((err, req, res, next) => {
