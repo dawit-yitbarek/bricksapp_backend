@@ -15,7 +15,7 @@ const { Pool } = pkg;
 
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT;
 const saltRounds = 10;
 const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
 
