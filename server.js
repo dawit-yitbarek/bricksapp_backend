@@ -179,6 +179,7 @@ app.post("/refresh", async (req, res) => {
 app.post("/logout", async (req, res) => {
   const token = req.cookies.refreshToken;
   if (!token) return res.sendStatus(204); // already logged out
+  console.log("user logout succesfully");
   res.clearCookie("refreshToken", { httpOnly: true, secure: true, sameSite: "Strict" });
   res.sendStatus(204);
 });
