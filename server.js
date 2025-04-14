@@ -16,10 +16,10 @@ const { Pool } = pkg;
 
 
 const app = express();
-port = process.env.PORT;
+const port = process.env.PORT;
 const saltRounds = 10;
 const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
-
+ 
 async function getVerificationCode(email, verificationCode) {
   try {
     const mailOptions = {
