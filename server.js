@@ -11,11 +11,12 @@ import cors from 'cors';
 import bcrypt from "bcrypt";
 import jwt from 'jsonwebtoken';
 import pkg from "pg";
+import { waitForDebugger } from "inspector";
 const { Pool } = pkg;
 
 
 const app = express();
-const port = process.env.PORT;
+port = process.env.PORT;
 const saltRounds = 10;
 const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -56,14 +57,16 @@ async function getVerificationCode(email, verificationCode) {
   }
 }
 
-console.log("DATABASE_URL:", process.env.DATABASE_URL);
 
+// database configuration
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false,
   },
 });
+
+console.log("DATABASE_URL:", process.env.DATABASE_URL);
 
 
 pool.connect((err) => {
@@ -90,7 +93,7 @@ cron.schedule('*/10 * * * *', async () => {
 
 
 app.use(cors({
-  origin: ['https://bricksapp-frontend.onrender.com'],
+  origin: [process.env.FRONTEND_URL],
   credentials: true
 }));
 
@@ -155,13 +158,7 @@ app.post("/refresh", async (req, res) => {
           return res.json({ accessToken, success: true });
         }
         // Handle invalid access token other than expiration
-        res.clearCookie("refreshToken", {
-          httpOnly: true,
-          secure: true,
-          sameSite: "None",
-        });
-        
-
+        res.clearCookie("refreshToken", { httpOnly: true, secure: true, sameSite: "Strict" });
         console.log("cookie cleared")
         return res.json({ message: "Invalid access token", success: false });
       }
@@ -181,14 +178,8 @@ app.post("/refresh", async (req, res) => {
 //logout route
 app.post("/logout", async (req, res) => {
   const token = req.cookies.refreshToken;
-  if (!token) return res.sendStatus(204); // already loggedout
-  res.clearCookie("refreshToken", {
-    httpOnly: true,
-    secure: true,
-    sameSite: "None",
-  });
-  
-  console.log("cookie cleared ", token);
+  if (!token) return res.sendStatus(204); // already logged out
+  res.clearCookie("refreshToken", { httpOnly: true, secure: true, sameSite: "Strict" });
   res.sendStatus(204);
 });
 
@@ -199,6 +190,7 @@ app.post("/signin", async (req, res, next) => {
 
   try {
     const selectUser = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+    
 
     if (selectUser.rows.length === 0) {
       console.log("User not found with this email");
@@ -224,6 +216,7 @@ app.post("/signin", async (req, res, next) => {
     // ✅ Generate tokens
     const accessToken = jwt.sign({ id: user.id }, process.env.ACCESS_SECRET, { expiresIn: "15m" });
     const refreshToken = jwt.sign({ id: user.id }, process.env.REFRESH_SECRET, { expiresIn: "150d" });
+
 
     // ✅ Send refresh token in HTTP-only cookie
     res.cookie("refreshToken", refreshToken, {
@@ -319,36 +312,21 @@ app.post("/connect-wallet", async (req, res) => {
   const token = req.cookies.refreshToken;
 
   if (!token) return res.json({ message: "Unauthorized" }); // Check if user is authenticated
-  const { address } = req.body;
+  const { address, walletName } = req.body;
   try {
     const decoded = jwt.verify(token, process.env.REFRESH_SECRET);
-    const insertAddress = await pool.query("UPDATE wallet SET address = $1 WHERE user_id = $2 RETURNING *", [address, decoded.id]);
-    console.log(insertAddress.rows[0]);
-    res.json(insertAddress.rows[0]);
-  } catch (error) {
-    console.error("error on connecting wallet ", error);
-    res.json({ message: "Failed to connect wallet" });
-  }
-});
 
-
-//get wallet route
-app.get("/get-wallet", async (req, res) => {
-  const token = req.cookies.refreshToken;
-
-  if (!token) return res.json({ message: "Unauthorized" }); // Check if user is authenticated
-  try {
-    const decoded = jwt.verify(token, process.env.REFRESH_SECRET);
-    const getWallet = await pool.query("SELECT * FROM wallet WHERE user_id = $1", [decoded.id]);
-    const selectedAddress = getWallet.rows[0];
-    if (!selectedAddress) {
-      res.json({ address: "no address" });
+    const selectWallet = await pool.query("SELECT * FROM wallet WHERE address = $1 AND user_id != $2", [address, decoded.id]);
+    if (selectWallet.rows.length > 0) {
+      return res.json({success: false, message: "This wallet address is already connected to another account" });
     }
 
-    res.json({ address: selectedAddress.address || null });
+    const insertAddress = await pool.query("UPDATE wallet SET address = $1, wallet_name = $2 WHERE user_id = $3 RETURNING *", [address, walletName, decoded.id]);
+    console.log(insertAddress.rows[0]);
+    res.json({insertedAddress: insertAddress.rows[0], success: true });
   } catch (error) {
-    console.error("error on getting wallet ", error);
-    res.status(500).json({ message: "Failed to get wallet address" });
+    console.error("error on connecting wallet ", error);
+    res.json({success: false, message: "Failed to connect wallet" });
   }
 });
 
@@ -360,7 +338,7 @@ app.post("/disconnect-wallet", async (req, res) => {
   if (!token) return res.status(401).json({ message: "Unauthorized" }); // Check if user is authenticated
   try {
     const decoded = jwt.verify(token, process.env.REFRESH_SECRET);
-    await pool.query("UPDATE wallet SET address = $1 WHERE user_id = $2 RETURNING *", [null, decoded.id]);
+    await pool.query("UPDATE wallet SET address = $1, wallet_name = $2 WHERE user_id = $3 RETURNING *", [null, null, decoded.id]);
     res.json({ success: true });
   } catch (error) {
     console.error("error on disconnecting wallet ", error); 
@@ -376,7 +354,7 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: "https://bricksapp-backend.onrender.com/auth/google/dashboard",
+      callbackURL: `${process.env.BACKEND_URL}/auth/google/dashboard`,
       userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo",
     },
     async (accessToken, refreshToken, profile, cb) => {
@@ -421,7 +399,7 @@ app.get(
 
 app.get("/auth/google/dashboard", passport.authenticate("google", { 
   session: false,
-  failureRedirect: "https://bricksapp-frontend.onrender.com/signin",
+  failureRedirect: `${process.env.BACKEND_URL}/signin`,
  }), (req, res) => {
  
   const { user } = req.user;
@@ -436,7 +414,7 @@ app.get("/auth/google/dashboard", passport.authenticate("google", {
     maxAge: 1000 * 60 * 60 * 24 * 30 * 5, // 5 months
   });
 
-  res.redirect("https://bricksapp-frontend.onrender.com")
+  res.redirect(process.env.FRONTEND_URL)
 });
 
 
@@ -495,7 +473,6 @@ app.post("/verify-email", async (req, res) => {
 
 
 
-
 // app.post("/auth/telegram", async (req, res, next) => {
 //   console.log("Telegram Authentication Request Received");
 //   const data = req.body;
@@ -535,11 +512,6 @@ app.post("/verify-email", async (req, res) => {
 //     res.json({ success: false, message: "Authorization failed, please try again" });
 //   }
 // });
-
-
-
-
-
 
 
 // It's monitored by UptimeRobot, which sends a request every 5 minutes.
