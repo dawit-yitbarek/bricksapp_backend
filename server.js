@@ -344,17 +344,6 @@ app.post("/connect-wallet", verifyAccessToken, async (req, res) => {
       [address, userId]
     );
 
-    const userWallet = await pool.query(
-      "SELECT address FROM wallet WHERE user_id = $1",
-      [userId]
-    );
-
-    // Check if user already has a connected wallet
-    if (userWallet.rows[0]?.address) {
-      if (userWallet.rows[0]?.address !== address) {
-        return res.json({ success: false, message: "You have already connected a wallet. Disconnect it to connect another wallet" });
-      };
-    };
 
     // Check if the new wallet address is already connected to another user
     if (existingWallet.rowCount > 0) {
