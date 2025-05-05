@@ -14,6 +14,7 @@ import jwt from 'jsonwebtoken';
 import pkg from "pg";
 import { Connection } from "@solana/web3.js";
 import rateLimit from 'express-rate-limit';
+import axios from 'axios'
 const { Pool } = pkg;
 
 
@@ -983,13 +984,26 @@ app.post("/reset-password", async (req, res) => {
 });
 
 
-
-
-
-// It's monitored by UptimeRobot, which sends a request every 5 minutes.
-app.get('/ping', (req, res) => {
-  res.status(200).send('pong');
+// Add a health check endpoint to confirm backend is running
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
 });
+
+// Function to ping both frontend and backend every 5 minutes
+setInterval(async () => {
+  try {
+    const frontRes = await axios.get(`${process.env.FRONTEND_URL}/ping`);
+    console.log(`Self-ping success frontend: ${frontRes.status}`);
+
+    const backRes = await axios.get(`${process.env.BACKEND_URL}/health`);
+    console.log(`Self-ping success backend: ${backRes.status}`);
+  } catch (error) {
+    console.error('Self-ping failed:', error.message);
+  }
+}, 5 * 60 * 1000); // Interval set to 5 minutes
+
+
+
 
 // Error-handling middleware (must be defined after routes)
 app.use((err, req, res, next) => {
