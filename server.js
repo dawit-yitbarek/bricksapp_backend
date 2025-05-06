@@ -62,13 +62,13 @@ async function getVerificationCode(email, verificationCode) {
 
 // database configuration
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: {
-      rejectUnauthorized: false,
-    },
-  });
-  
-  console.log("DATABASE_URL:", process.env.DATABASE_URL);
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+});
+
+console.log("DATABASE_URL:", process.env.DATABASE_URL);
 
 
 pool.connect((err) => {
@@ -291,7 +291,7 @@ app.get("/dashboard", verifyAccessToken, async (req, res) => {
 });
 
 
-app.post("/register", registerLimiter , async (req, res) => {
+app.post("/register", registerLimiter, async (req, res) => {
   const { email, password, referralCode } = req.body;
   const client = await pool.connect();
 
@@ -410,7 +410,7 @@ passport.use(
           await pool.query("INSERT INTO daily_reward (user_id) VALUES ($1)", [newUser.rows[0].id]);
           await pool.query("INSERT INTO referral_bonus (user_id) VALUES ($1)", [newUser.rows[0].id]);
           await pool.query("UPDATE users SET referral_number = referral_number + 1, point = point + 500 WHERE referral_code = $1", [referredBy]);
-    
+
           user = newUser.rows[0]
 
           const newReferralCode = nanoid(6) + user.id.toString();
@@ -459,7 +459,7 @@ app.get("/auth/google/dashboard", passport.authenticate("google", {
   const { user, accessToken } = req.user;
 
   const refreshToken = jwt.sign({ id: user.id }, process.env.REFRESH_SECRET, { expiresIn: "150d" });
-  
+
   // ✅ Send refresh token in HTTP-only cookie
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
@@ -700,7 +700,7 @@ app.get("/investment-tasks", verifyAccessToken, async (req, res) => {
 })
 
 
-app.get("/referral-tasks", verifyAccessToken , async (req, res) => {
+app.get("/referral-tasks", verifyAccessToken, async (req, res) => {
   const userId = req.user?.id
 
   try {
@@ -838,10 +838,12 @@ app.post("/claim-daily-reward", verifyAccessToken, async (req, res) => {
   const userId = req.user?.id
 
   try {
-
-    const dailyReward = await pool.query("UPDATE daily_reward SET claimed = $1 WHERE user_id = $2 RETURNING *", [true, userId]);
-    const updatedPoint = dailyReward.rows[0].streak * 1000;
-    await pool.query("UPDATE users SET point = point + $1 WHERE id = $2", [updatedPoint, userId]);
+    const claimedUser = await pool.query("SELECT 1 FROM daily_reward WHERE user_id = $1", [userId])
+    if (!claimedUser.rows[0]?.claimed) {
+      const dailyReward = await pool.query("UPDATE daily_reward SET claimed = $1 WHERE user_id = $2 RETURNING *", [true, userId]);
+      const updatedPoint = dailyReward.rows[0].streak * 1000;
+      await pool.query("UPDATE users SET point = point + $1 WHERE id = $2", [updatedPoint, userId]);
+    }
 
     res.json({ message: "Daily reward claimed successfully", success: true });
   } catch (err) {
