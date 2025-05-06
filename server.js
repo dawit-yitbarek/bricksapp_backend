@@ -838,10 +838,10 @@ app.post("/claim-daily-reward", verifyAccessToken, async (req, res) => {
   const userId = req.user?.id
 
   try {
-    const claimedUser = await pool.query("SELECT 1 FROM daily_reward WHERE user_id = $1", [userId])
+    const claimedUser = await pool.query("SELECT claimed, streak FROM daily_reward WHERE user_id = $1", [userId]);
     if (!claimedUser.rows[0]?.claimed) {
-      const dailyReward = await pool.query("UPDATE daily_reward SET claimed = $1 WHERE user_id = $2 RETURNING *", [true, userId]);
-      const updatedPoint = dailyReward.rows[0].streak * 1000;
+      await pool.query("UPDATE daily_reward SET claimed = $1 WHERE user_id = $2", [true, userId]);
+      const updatedPoint = claimedUser.rows[0].streak * 1000;
       await pool.query("UPDATE users SET point = point + $1 WHERE id = $2", [updatedPoint, userId]);
     }
 
