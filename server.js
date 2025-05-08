@@ -374,6 +374,17 @@ app.post("/disconnect-wallet", verifyAccessToken, async (req, res) => {
   }
 });
 
+app.get("/get-wallet-address", verifyAccessToken, async (req, res) => {
+  const userId = req.user?.id
+
+  try {
+    const userWallet = await pool.query("SELECT address from wallet WHERE user_id = $1", [userId])
+
+    res.json({ address: userWallet.rows[0]?.address || null })
+  } catch (error) {
+    console.error("error on getting user wallet address for mobile ", error)
+  }
+})
 
 
 passport.use(
